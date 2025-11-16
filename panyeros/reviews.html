@@ -10,10 +10,9 @@
     font-family: Georgia, serif;
     background-color: #fff8dd;
     margin: 0;
-    padding: 20px 20px 80px; /* bottom padding so content not hidden behind footer */
+    padding: 20px 20px 80px;
     color: #a38c07;
   }
-  /* Home button */
   #home-btn {
     position: fixed;
     top: 20px;
@@ -58,7 +57,6 @@
     margin: 0 auto 45px;
   }
 
-  /* Feedback Cards container */
   #feedback-list {
     max-width: 960px;
     margin: 0 auto 30px;
@@ -76,17 +74,7 @@
     min-height: 160px;
     color: #7f6a00;
   }
-  .feedback-card::before {
-    content: "“";
-    font-size: 48px;
-    position: absolute;
-    top: 14px;
-    left: 16px;
-    color: #f7d606;
-    opacity: 0.3;
-    font-family: Georgia, serif;
-    font-weight: 700;
-  }
+  
   .stars {
     margin-top: 14px;
     font-size: 22px;
@@ -96,7 +84,6 @@
     user-select: none;
   }
 
-  /* Feedback Form */
   #form-section {
     max-width: 620px;
     margin: 0 auto 0;
@@ -164,15 +151,20 @@
   #submit-btn:hover {
     background-color: #7e6703;
   }
+  #submit-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
 
-  /* Footer (static at page bottom) */
   footer {
     background-color: #a38c07;
     color: #fff8dd;
     text-align: center;
+    padding: 16px 8px;
     font-family: Georgia, serif;
     font-size: 15px;
     font-weight: 700;
+    box-shadow: 0 -4px 12px rgb(163 140 7 / 0.9);
     margin: 0;
     padding: 10px 0;
     width: 100%;
@@ -181,10 +173,24 @@
     bottom: 0;
     left: 0;
     right: 0;
-
   }
 
-  /* Responsive tweaks */
+  /* Loading spinner */
+  .spinner {
+    display: none;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #a38c07;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+  }
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
   @media (max-width: 520px) {
     #home-btn {
       top: 14px;
@@ -229,6 +235,7 @@
 
 <section id="form-section">
   <h2>Share Your Feedback</h2>
+  <div class="spinner" id="loadingSpinner"></div>
   <form id="feedback-form">
     <label for="feedback-text">Your feedback</label>
     <textarea id="feedback-text" name="feedback-text" placeholder="Ilagay dito ang inyong feedback..." minlength="10" required></textarea>
@@ -247,12 +254,13 @@
   </form>
 </section>
 
-
 <script>
   const form = document.getElementById('feedback-form');
   const feedbackList = document.getElementById('feedback-list');
+  const submitBtn = document.getElementById('submit-btn');
+  const spinner = document.getElementById('loadingSpinner');
 
-  form.addEventListener('submit', function(e) {
+  form.addEventListener('submit', async function(e) {
     e.preventDefault();
 
     const feedbackText = this['feedback-text'].value.trim();
@@ -267,35 +275,68 @@
       return;
     }
 
-    const fullStar = '★';
-    const emptyStar = '☆';
-    const stars = fullStar.repeat(rating) + emptyStar.repeat(5 - rating);
+    // Disable button and show spinner
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+    spinner.style.display = 'block';
 
-    const newCard = document.createElement('div');
-    newCard.classList.add('feedback-card');
-    newCard.textContent = feedbackText;
+    // Create FormData
+    const formData = new FormData();
+    formData.append('feedback-text', feedbackText);
+    formData.append('rating', rating);
 
-    const starsDiv = document.createElement('div');
-    starsDiv.classList.add('stars');
-    starsDiv.textContent = stars;
+    try {
+      // Send to PHP backend
+      const response = await fetch('submit_feedback.php', {
+        method: 'POST',
+        body: formData
+      });
 
-    newCard.appendChild(starsDiv);
+      const result = await response.json();
 
-    // Add new feedback to start
-    feedbackList.prepend(newCard);
+      if (result.success) {
+        // Create visual feedback card
+        const fullStar = '★';
+        const emptyStar = '☆';
+        const stars = fullStar.repeat(rating) + emptyStar.repeat(5 - rating);
 
-    // Reset form and alert
-    this.reset();
-    alert('Salamat sa inyong feedback!');
+        const newCard = document.createElement('div');
+        newCard.classList.add('feedback-card');
+        newCard.textContent = feedbackText;
 
-    newCard.scrollIntoView({ behavior: 'smooth' });
+        const starsDiv = document.createElement('div');
+        starsDiv.classList.add('stars');
+        starsDiv.textContent = stars;
+
+        newCard.appendChild(starsDiv);
+        feedbackList.prepend(newCard);
+
+        // Reset form
+        this.reset();
+        
+        // Show success message
+        alert(result.message);
+
+        // Scroll to new feedback
+        newCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        alert('Error: ' + result.message);
+      }
+    } catch (error) {
+      alert('Connection error. Please try again later.');
+      console.error('Error:', error);
+    } finally {
+      // Re-enable button and hide spinner
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit Feedback';
+      spinner.style.display = 'none';
+    }
   });
 </script>
 
 <footer>
   © 2025 Panyeros Kusina. All rights reserved.
 </footer>
-
 
 </body>
 </html>
